@@ -1,0 +1,22 @@
+server:
+  port: 89
+
+logging:
+  level:
+    org:
+      springframework:
+        security: DEBUG
+        web:
+          filter:
+            CommonsRequestLoggingFilter: DEBUG
+
+keycloak:
+  client:
+    clientId: springkc
+    accessTokenUri: http://192.168.99.100:8080/auth/realms/RHM/protocol/openid-connect/token
+    userAuthorizationUri: http://192.168.99.100:8080/auth/realms/RHM/protocol/openid-connect/auth
+    token-name: access_token
+    authenticationScheme: header
+    clientAuthenticationScheme: header
+  resource:
+    userInfoUri: http://192.168.99.100:8080/auth/realms/RHM/protocol/openid-connect/userinfo
