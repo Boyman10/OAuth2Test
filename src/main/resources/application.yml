@@ -9,6 +9,13 @@ logging:
         web:
           filter:
             CommonsRequestLoggingFilter: DEBUG
+security:
+  oauth2:
+    client:
+      client-id: acme
+      client-secret: acmesecret
+      scope: read,write
+      auto-approve-scopes: '.*'
 
 keycloak:
   client:

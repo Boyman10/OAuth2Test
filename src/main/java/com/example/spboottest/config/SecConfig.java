@@ -19,23 +19,28 @@ import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.security.oauth2.client.filter.OAuth2ClientAuthenticationProcessingFilter;
 import org.springframework.security.oauth2.client.filter.OAuth2ClientContextFilter;
 import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeResourceDetails;
+import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableOAuth2Client;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CompositeFilter;
 
 import javax.servlet.Filter;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 
 @Configuration
 @EnableOAuth2Client
+@EnableAuthorizationServer
 public class SecConfig extends WebSecurityConfigurerAdapter {
     private static final Logger log = LoggerFactory.getLogger(SecConfig.class);
 
@@ -45,7 +50,6 @@ public class SecConfig extends WebSecurityConfigurerAdapter {
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-
         http.csrf().disable()
                 .cors().and()
                 .authorizeRequests()
@@ -85,28 +89,30 @@ public class SecConfig extends WebSecurityConfigurerAdapter {
     }
 
     private Filter ssoFilter() {
-        OAuth2ClientAuthenticationProcessingFilter kkFilter = new OAuth2ClientAuthenticationProcessingFilter("/login");
-        OAuth2RestTemplate keycloakTemplate = new OAuth2RestTemplate(keycloak(), oauth2ClientContext);
-        kkFilter.setRestTemplate(keycloakTemplate);
-        UserInfoTokenServices tokenServices = new UserInfoTokenServices(kcResource().getUserInfoUri(), keycloak().getClientId());
-        tokenServices.setRestTemplate(keycloakTemplate);
-        kkFilter.setTokenServices(tokenServices);
-        return kkFilter;
+        CompositeFilter filter = new CompositeFilter();
+        List<Filter> filters = new ArrayList<>();
+        filters.add(ssoFilter(keycloak(), "/login"));
+        filter.setFilters(filters);
+        return filter;
+    }
+    private Filter ssoFilter(ClientResources client, String path) {
+        OAuth2ClientAuthenticationProcessingFilter filter = new OAuth2ClientAuthenticationProcessingFilter(path);
+        OAuth2RestTemplate template = new OAuth2RestTemplate(client.getClient(), oauth2ClientContext);
+        filter.setRestTemplate(template);
+        UserInfoTokenServices tokenServices = new UserInfoTokenServices(
+                client.getResource().getUserInfoUri(), client.getClient().getClientId());
+        tokenServices.setRestTemplate(template);
+        filter.setTokenServices(tokenServices);
+        return filter;
     }
 
     @Bean
-    @ConfigurationProperties("keycloak.client")
-    public AuthorizationCodeResourceDetails keycloak() {
-
-        log.info("Getting resource from application yaml");
-        return new AuthorizationCodeResourceDetails();
+    @ConfigurationProperties("keycloak")
+    public ClientResources keycloak() {
+        return new ClientResources();
     }
 
-    @Bean
-    @ConfigurationProperties("keycloak.resource")
-    public ResourceServerProperties kcResource() {
-        return new ResourceServerProperties();
-    }
+
 
     @Bean
     public FilterRegistrationBean<OAuth2ClientContextFilter> oauth2ClientFilterRegistration(OAuth2ClientContextFilter filter) {
